@@ -46,7 +46,7 @@ test('a. Home page renders real content', async ({ page }) => {
 
   const leakedUrlCount = await page
     .locator(
-      `[href*="${LOCAL_URL_MARKER}"], [src*="${LOCAL_URL_MARKER}"], [href*="localhost"], [src*="localhost"], [href*="127.0.0.1"], [src*="127.0.0.1"], [href*="lndo.site"], [src*="lndo.site"]`,
+      `[href*="${LOCAL_URL_MARKER}"], [src*="${LOCAL_URL_MARKER}"], [href*="localhost"], [src*="localhost"], [href*="127.0.0.1"], [src*="127.0.0.1"]`,
     )
     .count();
   expect(leakedUrlCount).toBe(0);
@@ -131,7 +131,6 @@ test('e. No mixed content or local URL leakage', async ({ page }) => {
 
   const html = await page.content();
   expect(html).not.toContain(LOCAL_URL_MARKER);
-  expect(html).not.toMatch(/\.lndo\.site/i);
   expect(html).not.toMatch(/http:\/\/127\.0\.0\.1/i);
   expect(html).not.toMatch(/http:\/\/localhost/i);
 

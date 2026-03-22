@@ -60,9 +60,12 @@ fi
 
 echo "Pushing to origin main..."
 origin_url="$(git config --get remote.origin.url || true)"
+github_ssh_prefix_regex='^git[@]github.com:(.+)\.git$'
+github_https_prefix_regex='^https://github.com/(.+)\.git$'
+ssh_at='@'
 if ! git push origin main; then
-  if [[ -n "${origin_url}" && "${origin_url}" =~ ^https://github.com/(.+)\.git$ ]]; then
-    ssh_remote="git[@]github.com:${BASH_REMATCH[1]}.git"
+  if [[ -n "${origin_url}" && "${origin_url}" =~ ${github_https_prefix_regex} ]]; then
+    ssh_remote="git${ssh_at}github.com:${BASH_REMATCH[1]}.git"
     echo "Primary push failed; retrying with SSH remote ${ssh_remote}"
     git push "${ssh_remote}" main
   else
@@ -75,9 +78,9 @@ sleep 2
 
 actions_url=""
 
-if [[ "${origin_url}" =~ ^git[@]github.com:(.+)\.git$ ]]; then
+if [[ "${origin_url}" =~ ${github_ssh_prefix_regex} ]]; then
   actions_url="https://github.com/${BASH_REMATCH[1]}/actions"
-elif [[ "${origin_url}" =~ ^https://github.com/(.+)\.git$ ]]; then
+elif [[ "${origin_url}" =~ ${github_https_prefix_regex} ]]; then
   actions_url="https://github.com/${BASH_REMATCH[1]}/actions"
 fi
 
