@@ -58,18 +58,14 @@ while (($#)); do
 done
 
 database_is_running() {
-  local project_name
-  local lando_list_json
+  local lando_info_json
 
-  project_name="$(lando config --format json 2>/dev/null | jq -r '.landoFileConfig.project // .project // empty')"
-  if [[ -z "${project_name}" ]]; then
-    return 1
-  fi
-
-  lando_list_json="$(lando list --format json 2>/dev/null || true)"
-  jq -e --arg project "${project_name}" '
-    any(.[]; .service == "database" and .app == $project and .running == true)
-  ' <<<"${lando_list_json}" >/dev/null 2>&1
+  # `lando list --format json` can occasionally emit truncated output in non-interactive hooks.
+  # `lando info --format json` is scoped to the current app and has proven more reliable.
+  lando_info_json="$(lando info --format json 2>/dev/null || true)"
+  jq -e '
+    type == "array" and any(.[]; .service == "database")
+  ' <<<"${lando_info_json}" >/dev/null 2>&1
 }
 
 cleanup_runtime_noise() {
