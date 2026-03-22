@@ -61,6 +61,28 @@ if ! database_is_running; then
   exit 1
 fi
 
+if ! git rev-parse --verify --quiet "${ref}^{commit}" >/dev/null; then
+  echo "[db-restore] Error: git ref '${ref}' does not exist." >&2
+  exit 1
+fi
+
+if ! git cat-file -e "${ref}:${snapshot_path}" 2>/dev/null; then
+  recent_snapshot_refs="$(git log --oneline --all -- "${snapshot_path}" | head -5 || true)"
+
+  echo "[db-restore] Error: No database snapshot found at git ref '${ref}'." >&2
+  echo "[db-restore] The snapshot file (${snapshot_path}) does not exist in that commit." >&2
+  echo "[db-restore] This usually means the commit was made before the DB sync pipeline was set up." >&2
+  echo >&2
+  echo "[db-restore] Available refs with snapshots:" >&2
+  if [[ -n "${recent_snapshot_refs}" ]]; then
+    printf '%s\n' "${recent_snapshot_refs}" >&2
+  else
+    echo "[db-restore] (none found)" >&2
+  fi
+
+  exit 1
+fi
+
 echo "[db-restore] Extracting ${snapshot_path} from git ref '${ref}'..."
 if ! git show "${ref}:${snapshot_path}" > "${host_tmp_sql}"; then
   echo "[db-restore] Could not read ${snapshot_path} at ref '${ref}'." >&2
