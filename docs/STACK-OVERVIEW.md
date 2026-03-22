@@ -1,15 +1,37 @@
-# Stack Overview (Reference)
+# Stack Overview
 
-`README.md` is the canonical source of truth for architecture, setup, workflow, deployment, recovery, and safety rules.
+This template keeps WordPress code and database state moving together from local development to staging.
 
-This file exists only as a quick navigation pointer:
+## Architecture Diagram
 
-- Project overview: `README.md#wordpress-fse--dolt-template`
-- Architecture summary: `README.md#architecture`
-- First-time setup: `SETUP.md`
-- Daily commands: `README.md#daily-workflow`
-- Recovery procedures: `README.md#recovery-playbook`
-- Script catalog: `README.md#available-scripts`
-- Template boundaries: `README.md#included-vs-you-add`
+```text
+Developer
+  |
+  | git commit (pre-commit hook)
+  v
+Local Repo -------------------------------> GitHub (code + DB artifacts)
+  |                                          |
+  | lando start                              | push to main
+  v                                          v
+Lando + WordPress + Dolt               GitHub Actions deploy-staging
+  |                                          |
+  | DB snapshot + Dolt log in git            | rsync code
+  |                                          | conditional DB import
+  +----------------------------------------->| wp search-replace local->staging
+                                             v
+                                      Staging WordPress (MySQL)
+```
 
-If this file and the README ever diverge, follow the README.
+## Components
+
+- Local runtime: Lando runs WordPress and Dolt. WordPress talks to Dolt over MySQL protocol.
+- Versioned DB artifacts: `database/snapshots/wordpress-baseline.sql`, `database/snapshots/dolt-log.txt`, and `database/dolt/`.
+- Git integration: `.githooks/pre-commit` triggers `scripts/db-sync-github.sh --pre-commit`.
+- Deployment: `.github/workflows/deploy-staging.yml` deploys code and optionally imports DB snapshot when DB artifacts changed.
+- Verification: Playwright checks in `tests/staging/` validate staging after deploy.
+
+## Environment Boundaries
+
+- Local uses Dolt for database version control.
+- Staging/production keep standard MySQL-compatible hosting.
+- URL rewriting is handled during deploy/import flows to prevent local URL leakage.

@@ -1,74 +1,90 @@
-# WordPress FSE + Dolt Template
+# versioned-wp
 
-This template gives you a production-ready WordPress Full Site Editing workflow with database version control built in: Dolt runs locally inside Lando, database artifacts sync into Git, staging deploys can conditionally import SQL snapshots with URL rewriting, Playwright verifies staging health, and recovery scripts provide fast rollback/reset paths.
+WordPress development with real database version control. Every commit captures your code and your database as one atomic snapshot.
 
-## Architecture
+## The Problem
 
-- Local development: Lando + WordPress + Dolt (`database/dolt`) as the MySQL-compatible database engine.
-- Remote environments: standard MySQL-compatible WordPress hosting on staging/production.
-- Deployment model: GitHub Actions deploys files via `rsync`; DB import runs only when tracked DB artifacts change.
-- DB tracking model: pre-commit hook runs `scripts/db-sync-github.sh --pre-commit` to keep Dolt + SQL snapshot artifacts synchronized.
+WordPress stores pages, menus, widgets, settings, and theme configuration in MySQL, but most teams only version their code in Git. That split causes drift, fragile deploys, and painful environment sync work. Many WordPress developers have lost content changes or broken data migrations because database state was not versioned with code.
+
+## The Solution
+
+This template runs WordPress on Dolt inside Lando for local development. Dolt is MySQL wire-compatible, so WordPress works as usual, but you gain Git-style history for your data: commit, log, diff, branch, and reset. A single `git clone` gives you a full workflow: code + database tracking + deployment automation + recovery tooling.
+
+## What's Included
+
+- Dolt database engine in Lando (MySQL-compatible, WordPress works without code changes)
+- Pre-commit hook that auto-syncs DB state into every Git commit
+- Staging deploy pipeline via GitHub Actions (conditional DB import, dynamic URL rewrite)
+- Recovery scripts (rollback to any commit, fresh-clone rebuild, staging restore)
+- Playwright staging health tests
+- Developer shortcuts: `lando status`, `lando save`, `lando deploy`, `lando test-staging`
 
 ## Quick Start
 
-Start with [`SETUP.md`](SETUP.md) and complete the placeholder replacement table before running any scripts.
+```bash
+git clone https://github.com/HenryGetz/versioned-wp my-project
+cd my-project
+# Fill in CHANGEME- placeholders (see SETUP.md)
+./scripts/setup-dev.sh
+lando start
+# Start building — your database is version controlled
+```
+
+## Requirements
+
+- Docker + Lando
+- Git
+- Node.js 18+ (for Playwright tests)
+- A staging server with SSH access and WP-CLI
+
+## Documentation
+
+- Full setup guide: [`SETUP.md`](SETUP.md)
+- Architecture and stack overview: [`docs/STACK-OVERVIEW.md`](docs/STACK-OVERVIEW.md)
+- Scripts reference: [`scripts/README.md`](scripts/README.md)
 
 ## Daily Workflow
 
 | Goal | Command |
 | --- | --- |
-| Check project status | `lando status` |
-| Save code + DB checkpoint | `lando save "your message"` |
-| Push to staging deploy pipeline | `lando deploy` |
+| Check local project + DB health | `lando status` |
+| Save code and DB together | `lando save "message"` |
+| Push to `main` with deploy guardrails | `lando deploy` |
+| Run staging browser tests | `lando test-staging` |
 | Pull staging DB into local | `lando pull-db` |
-| Run staging Playwright checks | `lando test-staging` |
-| Create Dolt commit manually | `lando dolt -- add -A && lando dolt -- commit -m "message"` |
-| Inspect Dolt history | `lando dolt-log` |
-| Inspect Dolt working diff | `lando dolt-diff` |
+| Manual Dolt commit | `lando dolt -- add -A && lando dolt -- commit -m "message"` |
+| View Dolt history | `lando dolt-log` |
+| View Dolt diff | `lando dolt-diff` |
 | Hard reset local Dolt working state | `lando dolt-reset` |
 
 ## Recovery Playbook
 
-### 1) Undo local uncommitted DB changes
+| Scenario | Command |
+| --- | --- |
+| Undo uncommitted local DB changes | `lando dolt-reset` |
+| Restore DB from a prior Git commit | `./scripts/db-restore.sh <git-ref>` |
+| Rebuild local from tracked snapshot | `./scripts/nuke-local.sh` |
 
-```bash
-lando dolt-reset
-```
+## How It Works
 
-### 2) Restore local DB from a previous Git-tracked snapshot
+- Local: Dolt in Lando replaces MySQL, and WordPress connects the same way it would to MySQL.
+- Git: the pre-commit hook runs `scripts/db-sync-github.sh --pre-commit` and captures DB artifacts with your code changes.
+- Deploy: GitHub Actions deploys files via `rsync`, imports DB snapshot only when DB artifacts changed, then rewrites URLs for staging.
+- Staging and production: standard MySQL WordPress hosting. Dolt is local-only.
 
-```bash
-./scripts/db-restore.sh <git-ref>
-```
+See [`docs/STACK-OVERVIEW.md`](docs/STACK-OVERVIEW.md) for the architecture diagram and flow.
 
-### 3) Recover staging from a pre-deploy backup
+## Contributing
 
-- Each deploy stores a SQL backup under `CHANGEME-remote-backup-path`.
-- SSH to staging and import the desired snapshot:
+Contributions are welcome. Fork the repo, create a branch, and open a pull request.
 
-```bash
-ssh <user>@<host> "cd <target-dir>/wordpress && wp db import <backup-file>.sql"
-```
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full guide.
 
-## Available Scripts
+## License
 
-- `scripts/setup-dev.sh`: bootstrap local tooling, hooks, Lando, and baseline checks.
-- `scripts/status.sh`: one-screen health summary for Git, Lando, Dolt, WordPress, and staging.
-- `scripts/save.sh`: commit Dolt changes (when needed) and Git changes with one message.
-- `scripts/deploy.sh`: guarded push helper that triggers the staging GitHub Actions deploy.
-- `scripts/test-staging.sh`: run Playwright staging smoke/health checks.
-- `scripts/db-sync-github.sh`: sync Dolt + SQL snapshot artifacts into Git.
-- `scripts/db-restore.sh`: restore local DB snapshot from a specified Git ref.
-- `scripts/pull-staging-db.sh`: import staging DB into local and commit resulting Dolt state.
-- `scripts/nuke-local.sh`: destructive local rebuild from tracked snapshot.
-- `scripts/force-reset-db.sh`: destructive full reset helper (alternate rebuild path).
-- `scripts/deploy-staging.sh`: manual SQL deployment helper for staging.
-- `scripts/verify-tracking.sh`: guardrails for required DB-tracking files and repository rules.
-- `scripts/lando-post-start.sh`: Lando post-start automation for WP bootstrap/config.
-- `scripts/mysqlcheck`: compatibility shim for tooling expecting `mysqlcheck`.
+MIT. See [`LICENSE`](LICENSE).
 
-## Included vs You Add
+## Credits
 
-- Included: Lando + Dolt wiring, Git hooks, CI workflows, DB snapshot scripts, Playwright staging checks, recovery tooling, and docs.
-- You add: your FSE theme, plugins, content, media, server secrets, and environment-specific URLs/paths.
-
+- [Dolt by DoltHub](https://github.com/dolthub/dolt)
+- [Lando documentation](https://docs.lando.dev/)
