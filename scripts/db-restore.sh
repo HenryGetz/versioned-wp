@@ -67,7 +67,13 @@ if ! git rev-parse --verify --quiet "${ref}^{commit}" >/dev/null; then
 fi
 
 if ! git cat-file -e "${ref}:${snapshot_path}" 2>/dev/null; then
-  recent_snapshot_refs="$(git log --oneline --all -- "${snapshot_path}" | head -5 || true)"
+  recent_snapshot_refs="$({
+    git rev-list --all -- "${snapshot_path}" | while read -r commit_hash; do
+      if git cat-file -e "${commit_hash}:${snapshot_path}" 2>/dev/null; then
+        git show --no-patch --oneline "${commit_hash}"
+      fi
+    done
+  } | head -5 || true)"
 
   echo "[db-restore] Error: No database snapshot found at git ref '${ref}'." >&2
   echo "[db-restore] The snapshot file (${snapshot_path}) does not exist in that commit." >&2
