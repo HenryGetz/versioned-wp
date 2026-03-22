@@ -55,16 +55,8 @@ services:
         APP_HTTP_HOST: *app_http_host
         APP_HTTP_PORT: *app_http_port
       ports:
-        - target: 443
-          published: 58080
-          protocol: tcp
-          host_ip: 0.0.0.0
         - target: 80
           published: *app_http_port
-          protocol: tcp
-          host_ip: 0.0.0.0
-        - target: 80
-          published: 32770
           protocol: tcp
           host_ip: 0.0.0.0
   test_runner:
