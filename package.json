@@ -1,0 +1,29 @@
+{
+  "name": "CHANGEME-project-slug",
+  "version": "1.0.0",
+  "description": "This project runs WordPress on Lando with Dolt as the database backend. Dolt speaks MySQL protocol, so WordPress works normally while every DB change can be committed, diffed, branched, and reset.",
+  "templatePlaceholderNote": "Replace all CHANGEME-* values in this file during setup.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CHANGEME-github-org/CHANGEME-github-repo.git"
+  },
+  "keywords": [],
+  "author": "CHANGEME-dev-name <CHANGEME-dev-email>",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/CHANGEME-github-org/CHANGEME-github-repo/issues"
+  },
+  "homepage": "https://github.com/CHANGEME-github-org/CHANGEME-github-repo#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}

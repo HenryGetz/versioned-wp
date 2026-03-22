@@ -1,0 +1,37 @@
+name: Verify Database Tracking
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  verify-db-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run repository tracking verification script
+        run: ./scripts/verify-tracking.sh
+
+      - name: Require SQL snapshot updates when Dolt files change
+        if: github.event_name == 'pull_request'
+        run: |
+          CHANGED_FILES="$(git diff --name-only origin/${{ github.base_ref }}...HEAD)"
+          if echo "${CHANGED_FILES}" | rg -q '^database/dolt/'; then
+            if ! echo "${CHANGED_FILES}" | rg -q '^database/snapshots/wordpress-baseline.sql$'; then
+              echo "database/dolt changes detected without updating database/snapshots/wordpress-baseline.sql"
+              exit 1
+            fi
+            if ! echo "${CHANGED_FILES}" | rg -q '^database/snapshots/dolt-log.txt$'; then
+              echo "database/dolt changes detected without updating database/snapshots/dolt-log.txt"
+              exit 1
+            fi
+          fi

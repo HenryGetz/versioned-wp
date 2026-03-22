@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "${ROOT_DIR}"
+
+if [[ ! -x "${ROOT_DIR}/scripts/db-sync-github.sh" ]]; then
+  echo "[db-sync] scripts/db-sync-github.sh missing, skipping DB sync"
+  exit 0
+fi
+
+"${ROOT_DIR}/scripts/db-sync-github.sh" --pre-commit

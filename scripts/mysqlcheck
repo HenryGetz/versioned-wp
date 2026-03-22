@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Dolt does not support CHECK TABLE. Emulate mysqlcheck by confirming
+# that we can connect and list tables for the target database.
+host="database"
+user="root"
+password=""
+database="wordpress"
+
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+  arg="${args[$i]}"
+  case "$arg" in
+    --host=*)
+      host="${arg#*=}"
+      ;;
+    -h)
+      i=$((i + 1))
+      host="${args[$i]}"
+      ;;
+    --user=*)
+      user="${arg#*=}"
+      ;;
+    -u)
+      i=$((i + 1))
+      user="${args[$i]}"
+      ;;
+    --password=*)
+      password="${arg#*=}"
+      ;;
+    --password)
+      i=$((i + 1))
+      password="${args[$i]}"
+      ;;
+    -p*)
+      password="${arg#-p}"
+      ;;
+    --*|-*)
+      # Ignore mysqlcheck-only flags.
+      ;;
+    *)
+      database="$arg"
+      ;;
+  esac
+done
+
+mysql_cmd=(mysql --host="$host" --user="$user")
+if [[ -n "$password" ]]; then
+  mysql_cmd+=(--password="$password")
+fi
+
+mysql_cmd+=("$database" --execute='SHOW TABLES;')
+"${mysql_cmd[@]}" >/dev/null
+
+echo "${database} OK"

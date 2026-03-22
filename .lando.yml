@@ -1,0 +1,127 @@
+# Replace CHANGEME values during project setup:
+# - CHANGEME-project-slug: short slug for this repository/app.
+# - CHANGEME-local-host: local hostname or IP used for browser access.
+# - CHANGEME-local-port: local HTTP port used for browser access.
+# - CHANGEME-dev-name / CHANGEME-dev-email: Dolt commit identity.
+name: CHANGEME-project-slug
+bindAddress: 0.0.0.0
+proxyBindAddress: 0.0.0.0
+recipe: wordpress
+proxy:
+  appserver_nginx:
+    - CHANGEME-local-host
+config:
+  php: "8.2"
+  via: nginx
+  webroot: wordpress
+services:
+  appserver:
+    overrides:
+      environment:
+        APP_HTTP_HOST: &app_http_host "CHANGEME-local-host"
+        APP_HTTP_PORT: &app_http_port "CHANGEME-local-port"
+  database:
+    type: compose
+    app_mount: true
+    services:
+      image: dolthub/dolt-sql-server:latest
+      command:
+        - /bin/bash
+        - -lc
+        - |
+          set -euo pipefail
+          mkdir -p /var/lib/dolt/wordpress
+          dolt config --global --set user.name "CHANGEME-dev-name"
+          dolt config --global --set user.email "CHANGEME-dev-email"
+          if [ ! -d /var/lib/dolt/wordpress/.dolt ]; then
+            cd /var/lib/dolt/wordpress
+            dolt init
+          fi
+          dolt --data-dir=/var/lib/dolt sql -q "
+            CREATE DATABASE IF NOT EXISTS wordpress;
+            CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY '';
+            GRANT ALL ON *.* TO 'root'@'%' WITH GRANT OPTION;
+          "
+          chown -R www-data:www-data /var/lib/dolt
+          exec dolt sql-server --host=0.0.0.0 --port=3306 --data-dir=/var/lib/dolt
+      expose:
+        - "3306"
+      volumes:
+        - ./database/dolt:/var/lib/dolt
+  appserver_nginx:
+    portforward: false
+    overrides:
+      environment:
+        APP_HTTP_HOST: *app_http_host
+        APP_HTTP_PORT: *app_http_port
+      ports:
+        - target: 443
+          published: 58080
+          protocol: tcp
+          host_ip: 0.0.0.0
+        - target: 80
+          published: *app_http_port
+          protocol: tcp
+          host_ip: 0.0.0.0
+        - target: 80
+          published: 32770
+          protocol: tcp
+          host_ip: 0.0.0.0
+  test_runner:
+    type: compose
+    app_mount: true
+    services:
+      image: mcr.microsoft.com/playwright:v1.58.2-jammy
+      command:
+        - /bin/bash
+        - -lc
+        - while sleep 3600; do :; done
+events:
+  post-start:
+    - appserver: /app/scripts/lando-post-start.sh
+
+tooling:
+  status:
+    service: appserver
+    description: Show Git, Dolt, Lando, WordPress, and staging status.
+    cmd: /bin/bash -lc '/app/scripts/status.sh'
+  save:
+    service: appserver
+    description: Save current code and DB state into Git + Dolt commits.
+    cmd: /bin/bash -lc '/app/scripts/save.sh "$@"' --
+  deploy:
+    service: appserver
+    description: Push origin/main to trigger staging deploy.
+    cmd: /bin/bash -lc '/app/scripts/deploy.sh'
+  pull-db:
+    service: appserver
+    description: Pull staging DB into local and commit to Dolt.
+    cmd: /bin/bash -lc '/app/scripts/pull-staging-db.sh'
+  test-staging:
+    service: test_runner
+    description: Run Playwright staging health checks.
+    cmd: /bin/bash -lc 'cd /app && ./scripts/test-staging.sh'
+  nuke:
+    service: appserver
+    description: Destroy and rebuild local env from tracked snapshot.
+    cmd: /bin/bash -lc '/app/scripts/nuke-local.sh'
+  dolt:
+    service: database
+    description: Run Dolt subcommands in the WordPress database repo.
+    cmd: /bin/bash -lc 'cd /var/lib/dolt/wordpress && if [ "${1:-}" = "--" ]; then shift; fi; dolt "$@"' --
+  dolt-commit:
+    service: database
+    description: Stage all DB changes and create a Dolt commit.
+    cmd: /bin/bash -lc 'cd /var/lib/dolt/wordpress && if [ "${1:-}" = "--" ]; then shift; fi; dolt add -A && dolt commit "$@"' --
+  dolt-log:
+    service: database
+    description: Show Dolt commit history.
+    cmd: /bin/bash -lc 'cd /var/lib/dolt/wordpress && dolt log'
+  dolt-diff:
+    service: database
+    description: Show uncommitted Dolt changes.
+    cmd: /bin/bash -lc 'cd /var/lib/dolt/wordpress && dolt diff'
+  dolt-reset:
+    service: database
+    description: Reset Dolt working state to HEAD.
+    cmd: /bin/bash -lc 'cd /var/lib/dolt/wordpress && dolt reset --hard'

@@ -1,0 +1,29 @@
+.code/
+
+# Local WordPress config with secrets
+wordpress/wp-config.php
+
+# Local environment overrides
+.lando.local.yml
+
+# Local Lando/Dolt runtime data
+pre-dolt-backup.sql
+database/snapshots/pre-restore-backup.sql
+.tmp/
+.tmp-staging-*.sql
+
+# Ephemeral Dolt runtime files under the repo-tracked database directory
+database/dolt/.dolt/sql-server.info
+database/dolt/**/LOCK
+database/dolt/**/journal.idx
+database/dolt/**/stats/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+
+# Node / Playwright local tooling
+node_modules/
+tests/staging/screenshots/
+tests/staging/test-results/
+playwright-report/
